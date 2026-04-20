@@ -1,0 +1,1259 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아두이노 코드 생성 시뮬레이터</title>
+<style>
+:root {
+  --bg-primary: #F8F9FC;
+  --bg-panel: #FFFFFF;
+  --bg-panel-header: #F1F3F8;
+  --border-color: #E2E6EF;
+  --text-primary: #2D3250;
+  --text-secondary: #6B7499;
+  --text-hint: #A0A8C4;
+  --block-condition: #FFE0B2;
+  --block-condition-border: #FFB74D;
+  --block-condition-text: #E65100;
+  --block-action-led: #C8E6C9;
+  --block-action-led-border: #81C784;
+  --block-action-led-text: #1B5E20;
+  --block-action-servo: #BBDEFB;
+  --block-action-servo-border: #64B5F6;
+  --block-action-servo-text: #0D47A1;
+  --block-wait: #E1BEE7;
+  --block-wait-border: #BA68C8;
+  --block-wait-text: #4A148C;
+  --sim-bg: #1A1D2E;
+  --sim-led-off: #3A3D4E;
+  --sim-servo-body: #78909C;
+  --sim-servo-arm: #FF7043;
+  --code-bg: #1E1E2E;
+  --code-text: #CDD6F4;
+  --code-keyword: #CBA6F7;
+  --code-function: #89B4FA;
+  --code-string: #A6E3A1;
+  --code-comment: #6C7086;
+  --code-number: #FAB387;
+  --btn-primary: #7C6BF0;
+  --btn-danger: #EF5350;
+  --btn-success: #66BB6A;
+  --btn-play: #66BB6A;
+  --btn-pause: #FFA726;
+  --btn-reset: #78909C;
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-pill: 999px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.12);
+  --font-main: 'Pretendard', -apple-system, 'Noto Sans KR', sans-serif;
+  --font-code: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-main); background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; overflow-x: hidden; }
+
+.app-header {
+  background: linear-gradient(135deg, #7C6BF0 0%, #5B8DEF 50%, #43BFE5 100%);
+  padding: 14px 24px; display: flex; align-items: center; gap: 14px;
+  box-shadow: 0 2px 12px rgba(124,107,240,0.3); position: sticky; top: 0; z-index: 100;
+}
+.app-logo { width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.app-header h1 { color: white; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+.app-header .subtitle { color: rgba(255,255,255,0.75); font-size: 12px; margin-top: 1px; }
+
+.main-layout { display: grid; grid-template-columns: 35% 30% 35%; gap: 0; height: calc(100vh - 68px); }
+.panel { display: flex; flex-direction: column; border-right: 1px solid var(--border-color); background: var(--bg-panel); overflow: hidden; }
+.panel:last-child { border-right: none; }
+.panel-header { padding: 10px 16px; background: var(--bg-panel-header); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.panel-header .panel-icon { width: 28px; height: 28px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 14px; color: white; flex-shrink: 0; }
+.panel-header h2 { font-size: 14px; font-weight: 700; }
+.panel-body { flex: 1; overflow-y: auto; padding: 12px; }
+.panel-blocks .panel-icon { background: var(--btn-primary); }
+
+.palette-section { margin-bottom: 10px; }
+.palette-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary); padding: 4px 8px 6px; display: flex; align-items: center; gap: 6px; }
+.palette-title::before { content: ''; width: 8px; height: 8px; border-radius: 50%; }
+.palette-section.condition .palette-title::before { background: var(--block-condition-border); }
+.palette-section.action-led .palette-title::before { background: var(--block-action-led-border); }
+.palette-section.action-servo .palette-title::before { background: var(--block-action-servo-border); }
+.palette-section.wait .palette-title::before { background: var(--block-wait-border); }
+.palette-blocks { display: flex; flex-direction: column; gap: 6px; }
+
+.block {
+  padding: 10px 14px; border-radius: var(--radius-md); border: 2px solid transparent;
+  cursor: grab; font-size: 13px; font-weight: 500; line-height: 1.6;
+  display: inline-flex; flex-wrap: wrap; align-items: center; gap: 5px;
+  transition: box-shadow 0.2s, transform 0.15s, border-color 0.2s; position: relative; user-select: none;
+  width: fit-content; max-width: 100%;
+}
+.block:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.block:active { cursor: grabbing; opacity: 0.85; transform: scale(0.98); }
+.block.dragging { opacity: 0.4; }
+.block.condition { background: var(--block-condition); border-color: var(--block-condition-border); color: var(--block-condition-text); }
+.block.action-led { background: var(--block-action-led); border-color: var(--block-action-led-border); color: var(--block-action-led-text); }
+.block.action-servo { background: var(--block-action-servo); border-color: var(--block-action-servo-border); color: var(--block-action-servo-text); }
+.block.wait { background: var(--block-wait); border-color: var(--block-wait-border); color: var(--block-wait-text); }
+
+.block.executing { box-shadow: 0 0 0 3px rgba(124,107,240,0.5), var(--shadow-md); transform: scale(1.02); }
+
+.block input[type="number"] {
+  min-width: 36px; width: auto; padding: 3px 6px; border-radius: var(--radius-pill);
+  border: 1.5px solid rgba(0,0,0,0.15); background: rgba(255,255,255,0.85);
+  font-size: 12px; font-weight: 600; text-align: center; color: inherit;
+  outline: none; font-family: var(--font-code);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+/* 스피너 화살표 숨기기 - 깔끔한 pill 유지 */
+.block input[type="number"]::-webkit-inner-spin-button,
+.block input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.block input[type="number"] { -moz-appearance: textfield; }
+.block input[type="number"]:focus { border-color: var(--btn-primary); box-shadow: 0 0 0 2px rgba(124,107,240,0.2); }
+.block input[type="number"].error { border-color: var(--btn-danger); background: #FFF0F0; }
+
+.block select {
+  padding: 3px 20px 3px 8px; border-radius: var(--radius-pill);
+  border: 1.5px solid rgba(0,0,0,0.15); background: rgba(255,255,255,0.85);
+  font-size: 12px; font-weight: 600; color: inherit; outline: none; cursor: pointer;
+  appearance: none; font-family: var(--font-main);
+  background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='%236B7499' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 6px center;
+}
+.block select:focus { border-color: var(--btn-primary); box-shadow: 0 0 0 2px rgba(124,107,240,0.2); }
+
+.block .block-delete {
+  position: absolute; top: -6px; right: -6px; width: 20px; height: 20px;
+  border-radius: 50%; background: var(--btn-danger); color: white; font-size: 11px;
+  display: none; align-items: center; justify-content: center; cursor: pointer;
+  border: 2px solid white; box-shadow: var(--shadow-sm); line-height: 1;
+}
+.block:hover .block-delete { display: flex; }
+
+.block.has-error { border-color: var(--btn-danger) !important; }
+.block .error-msg { width: 100%; font-size: 10px; color: var(--btn-danger); margin-top: 2px; font-weight: 600; }
+
+.workspace-label { font-size: 11px; font-weight: 700; color: var(--text-secondary); padding: 8px 8px 4px; text-transform: uppercase; letter-spacing: 1px; border-top: 2px dashed var(--border-color); margin-top: 4px; }
+.workspace-area {
+  min-height: 160px; border: 2px dashed var(--border-color); border-radius: var(--radius-md);
+  padding: 10px; margin-top: 6px; display: flex; flex-direction: column; gap: 6px;
+  transition: border-color 0.2s, background 0.2s; position: relative;
+}
+.workspace-area.drag-over { border-color: var(--btn-primary); background: rgba(124,107,240,0.05); }
+.workspace-area .empty-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: var(--text-hint); font-size: 13px; pointer-events: none; }
+.workspace-area .empty-hint .hint-icon { font-size: 28px; margin-bottom: 6px; opacity: 0.5; }
+.drop-indicator { height: 3px; background: var(--btn-primary); border-radius: 2px; margin: -2px 0; transition: opacity 0.15s; }
+
+.trash-zone {
+  margin-top: 8px; padding: 12px; border: 2px dashed var(--btn-danger); border-radius: var(--radius-md);
+  text-align: center; color: var(--btn-danger); font-size: 12px; font-weight: 600; opacity: 0.4;
+  transition: opacity 0.2s, background 0.2s; display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.trash-zone.drag-over { opacity: 1; background: rgba(239,83,80,0.08); }
+
+/* 더블클릭 피드백 */
+.block.dblclick-flash { animation: dblflash 0.35s; }
+@keyframes dblflash { 0%{transform:scale(1)} 50%{transform:scale(0.93);opacity:0.6} 100%{transform:scale(1)} }
+
+/* 패널 2 */
+.panel-sim .panel-icon { background: var(--btn-success); }
+.sim-container {
+  width: 100%; aspect-ratio: 1/1; background: var(--sim-bg); border-radius: var(--radius-md);
+  position: relative; overflow: hidden; margin-bottom: 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+
+.sim-inner { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+
+.sim-leds { display: flex; justify-content: center; gap: 28px; }
+.sim-led { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.sim-led-bulb {
+  width: 36px; height: 36px; border-radius: 50%; background: var(--sim-led-off);
+  border: 3px solid rgba(255,255,255,0.1);
+}
+.sim-led-bulb.on { background: #FFD54F; box-shadow: 0 0 16px rgba(255,213,79,0.6), 0 0 40px rgba(255,213,79,0.3); }
+.sim-led-label { font-size: 10px; color: rgba(255,255,255,0.6); font-weight: 600; }
+
+.sim-servo { display: flex; flex-direction: column; align-items: center; margin-top: 16px; }
+.sim-servo-visual { width: 100px; height: 100px; position: relative; }
+.sim-servo-body-circle { width: 44px; height: 44px; border-radius: 50%; background: var(--sim-servo-body); position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); border: 3px solid rgba(255,255,255,0.15); z-index: 2; }
+.sim-servo-arm { width: 4px; height: 46px; background: var(--sim-servo-arm); border-radius: 2px; position: absolute; bottom: 50%; left: 50%; transform-origin: bottom center; transform: translateX(-50%) rotate(0deg); z-index: 1; box-shadow: 0 0 8px rgba(255,112,67,0.4); transition: transform 0.1s; }
+.sim-servo-dot { width: 10px; height: 10px; border-radius: 50%; background: white; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); z-index: 3; }
+.sim-servo-angle { font-size: 14px; font-weight: 700; color: rgba(255,255,255,0.8); margin-top: 6px; font-family: var(--font-code); }
+
+.sim-distance { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); background: rgba(255,255,255,0.1); padding: 6px 16px; border-radius: var(--radius-pill); color: rgba(255,255,255,0.8); font-size: 13px; font-weight: 600; backdrop-filter: blur(4px); display: flex; align-items: center; gap: 6px; }
+.sim-distance .dist-value { font-family: var(--font-code); color: #43BFE5; font-weight: 700; }
+
+.sim-controls { display: flex; gap: 8px; margin-bottom: 12px; }
+.sim-controls button { flex: 1; padding: 8px 0; border: none; border-radius: var(--radius-md); font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 5px; transition: opacity 0.2s, transform 0.1s; font-family: var(--font-main); }
+.sim-controls button:active { transform: scale(0.96); }
+.sim-controls button:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-play { background: var(--btn-play); color: white; }
+.btn-pause { background: var(--btn-pause); color: white; }
+.btn-reset { background: var(--btn-reset); color: white; }
+
+.slider-group { background: var(--bg-panel-header); border-radius: var(--radius-md); padding: 10px 14px; }
+.slider-group label { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
+.slider-group label span { font-family: var(--font-code); color: var(--btn-primary); font-weight: 700; }
+.slider-group input[type="range"] { width: 100%; -webkit-appearance: none; appearance: none; height: 6px; border-radius: 3px; background: var(--border-color); outline: none; }
+.slider-group input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--btn-primary); cursor: pointer; box-shadow: var(--shadow-sm); }
+
+/* 패널 3 */
+.panel-code .panel-icon { background: #43BFE5; }
+.code-toolbar { display: flex; gap: 6px; margin-bottom: 10px; }
+.code-toolbar button { padding: 6px 14px; border: 1.5px solid var(--border-color); border-radius: var(--radius-pill); background: var(--bg-panel); font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: all 0.2s; color: var(--text-secondary); font-family: var(--font-main); }
+.code-toolbar button:hover { border-color: var(--btn-primary); color: var(--btn-primary); background: rgba(124,107,240,0.05); }
+.code-display { flex: 1; background: var(--code-bg); border-radius: var(--radius-md); padding: 16px; overflow: auto; font-family: var(--font-code); font-size: 11.5px; line-height: 1.7; color: var(--code-text); white-space: pre-wrap; word-break: break-all; tab-size: 2; }
+.code-display .kw { color: var(--code-keyword); font-weight: 600; }
+.code-display .fn { color: var(--code-function); }
+.code-display .str { color: var(--code-string); }
+.code-display .cm { color: var(--code-comment); font-style: italic; }
+.code-display .num { color: var(--code-number); }
+
+/* 핀 연결 안내 토글 버튼 */
+.pin-info-toggle {
+  margin-left: auto; padding: 6px 14px; border: 1.5px solid rgba(255,255,255,0.35);
+  border-radius: var(--radius-pill); background: rgba(255,255,255,0.15); color: white;
+  font-size: 12px; font-weight: 600; cursor: pointer; font-family: var(--font-main);
+  transition: background 0.2s; white-space: nowrap;
+}
+.pin-info-toggle:hover { background: rgba(255,255,255,0.25); }
+
+/* 핀 연결 안내 패널 */
+.pin-info-bar {
+  max-height: 0; overflow: hidden; background: #F1F3F8; border-bottom: 1px solid var(--border-color);
+  transition: max-height 0.3s ease;
+}
+.pin-info-bar.open { max-height: 120px; }
+.pin-info-inner {
+  display: flex; gap: 24px; padding: 10px 24px; flex-wrap: wrap; justify-content: center;
+}
+.pin-group {
+  display: flex; flex-direction: column; gap: 2px; font-size: 11.5px; color: var(--text-primary);
+}
+.pin-group strong { font-size: 12px; margin-bottom: 2px; }
+.pin-group span { color: var(--text-secondary); line-height: 1.5; }
+
+/* 입력 범위 힌트 툴팁 */
+.block input[type="number"] { position: relative; }
+.input-wrap { position: relative; display: inline-flex; align-items: center; }
+.range-hint {
+  display: none; position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  background: var(--text-primary); color: white; font-size: 10px; font-weight: 600;
+  padding: 4px 10px; border-radius: var(--radius-sm); white-space: nowrap; z-index: 50;
+  box-shadow: var(--shadow-md); pointer-events: none;
+  font-family: var(--font-main);
+}
+.range-hint::after {
+  content: ''; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
+  border: 4px solid transparent; border-top-color: var(--text-primary);
+}
+.input-wrap:focus-within .range-hint { display: block; }
+
+.toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--text-primary); color: white; padding: 10px 24px; border-radius: var(--radius-pill); font-size: 13px; font-weight: 600; box-shadow: var(--shadow-lg); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); z-index: 200; pointer-events: none; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 900px) {
+  .main-layout { grid-template-columns: 1fr; height: auto; }
+  .panel { border-right: none; border-bottom: 1px solid var(--border-color); }
+  .panel-body { max-height: 70vh; }
+  .sim-container { max-width: 400px; margin: 0 auto 12px; }
+}
+.panel-body::-webkit-scrollbar { width: 5px; }
+.panel-body::-webkit-scrollbar-track { background: transparent; }
+.panel-body::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+.code-display::-webkit-scrollbar { width: 5px; }
+.code-display::-webkit-scrollbar-track { background: transparent; }
+.code-display::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="app-logo">🤖</div>
+  <div>
+    <h1>아두이노 코드 생성 시뮬레이터</h1>
+    <div class="subtitle">블록을 조립하면 코드가 만들어져요!</div>
+  </div>
+  <button class="pin-info-toggle" id="pinInfoToggle" title="핀 연결 안내">📌 핀 연결 안내</button>
+</header>
+
+<div class="pin-info-bar" id="pinInfoBar">
+  <div class="pin-info-inner">
+    <div class="pin-group pin-led">
+      <strong>💡 LED</strong>
+      <span>LED1: 음극→3번핀, 양극(저항)→GND</span>
+      <span>LED2: 음극→5번핀, 양극(저항)→GND</span>
+      <span>LED3: 음극→6번핀, 양극(저항)→GND</span>
+    </div>
+    <div class="pin-group pin-servo">
+      <strong>⚙️ 서보모터</strong>
+      <span>갈색→GND</span>
+      <span>빨간색→5V</span>
+      <span>노란색→8번핀</span>
+    </div>
+    <div class="pin-group pin-ultra">
+      <strong>📡 초음파센서</strong>
+      <span>VCC→5V</span>
+      <span>Trig→10번핀</span>
+      <span>Echo→11번핀</span>
+      <span>GND→GND</span>
+    </div>
+  </div>
+</div>
+
+<main class="main-layout">
+  <!-- 패널 1 -->
+  <section class="panel panel-blocks">
+    <div class="panel-header"><div class="panel-icon">🧩</div><h2>블록 조립</h2></div>
+    <div class="panel-body">
+      <div class="palette-section condition">
+        <div class="palette-title">조건 블록</div>
+        <div class="palette-blocks" id="palette-condition"></div>
+      </div>
+      <div class="palette-section action-led">
+        <div class="palette-title">LED 동작 블록</div>
+        <div class="palette-blocks" id="palette-led"></div>
+      </div>
+      <div class="palette-section action-servo">
+        <div class="palette-title">서보모터 동작 블록</div>
+        <div class="palette-blocks" id="palette-servo"></div>
+      </div>
+      <div class="palette-section wait">
+        <div class="palette-title">대기 블록</div>
+        <div class="palette-blocks" id="palette-wait"></div>
+      </div>
+      <div class="workspace-label">▼ 블록 배치 영역 (더블클릭 또는 드래그)</div>
+      <div class="workspace-area" id="workspace">
+        <div class="empty-hint" id="emptyHint"><div class="hint-icon">⬇️</div>위의 블록을 여기로 끌어다 놓으세요<br><span style="font-size:11px;color:var(--text-hint)">(또는 블록을 더블클릭!)</span></div>
+      </div>
+      <div class="trash-zone" id="trashZone">🗑️ 여기에 놓으면 삭제돼요</div>
+    </div>
+  </section>
+
+  <!-- 패널 2 -->
+  <section class="panel panel-sim">
+    <div class="panel-header"><div class="panel-icon">▶️</div><h2>동작 미리보기</h2></div>
+    <div class="panel-body">
+      <div class="sim-controls">
+        <button class="btn-play" id="btnPlay">▶ 실행</button>
+        <button class="btn-pause" id="btnPause" disabled>⏸ 일시정지</button>
+        <button class="btn-reset" id="btnReset">↺ 초기화</button>
+      </div>
+      <div class="sim-container" id="simContainer">
+        <div class="sim-inner">
+          <div class="sim-leds">
+            <div class="sim-led"><div class="sim-led-bulb" id="led1"></div><div class="sim-led-label">LED 1</div></div>
+            <div class="sim-led"><div class="sim-led-bulb" id="led2"></div><div class="sim-led-label">LED 2</div></div>
+            <div class="sim-led"><div class="sim-led-bulb" id="led3"></div><div class="sim-led-label">LED 3</div></div>
+          </div>
+          <div class="sim-servo">
+            <div class="sim-servo-visual">
+              <div class="sim-servo-body-circle"></div>
+              <div class="sim-servo-arm" id="servoArm"></div>
+              <div class="sim-servo-dot"></div>
+            </div>
+            <div class="sim-servo-angle" id="servoAngleLabel">0°</div>
+          </div>
+        </div>
+        <div class="sim-distance">📡 거리: <span class="dist-value" id="distLabel">15 cm</span></div>
+      </div>
+      <div class="slider-group">
+        <label>초음파 센서 거리 <span id="sliderVal">15 cm</span></label>
+        <input type="range" min="0" max="30" value="15" id="distSlider">
+      </div>
+    </div>
+  </section>
+
+  <!-- 패널 3 -->
+  <section class="panel panel-code">
+    <div class="panel-header"><div class="panel-icon">💻</div><h2>아두이노 코드</h2></div>
+    <div class="panel-body" style="display:flex;flex-direction:column;">
+      <div class="code-toolbar">
+        <button id="btnCopy">📋 복사</button>
+        <button id="btnRegen">🔄 다시 생성</button>
+      </div>
+      <div class="code-display" id="codeDisplay"></div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast">✅ 복사 완료!</div>
+
+<script>
+// ===================================================================
+// 핀 설정 (고정 - 업로드된 .ino 파일 기준)
+// ===================================================================
+const PIN = { led1: 3, led2: 5, led3: 6, servo: 8, trig: 10, echo: 11 };
+
+// ===================================================================
+// 블록 템플릿 정의
+// ===================================================================
+const BLOCK_TEMPLATES = {
+  condition: {
+    type: 'condition',
+    cls: 'condition',
+    defaults: { distance: 10, compare: '작다면' },
+    render(d) {
+      return `만약 물체와 거리가 <input type="number" value="${d.distance}" min="0" max="30" data-field="distance"> cm 보다 <select data-field="compare"><option${d.compare==='작다면'?' selected':''}>작다면</option><option${d.compare==='크다면'?' selected':''}>크다면</option><option${d.compare==='같다면'?' selected':''}>같다면</option></select>`;
+    }
+  },
+  led: {
+    type: 'led',
+    cls: 'action-led',
+    defaults: { target: 'LED 1', interval: 500, count: 3, action: '깜박인다', duration: 1000 },
+    render(d) {
+      const opts = ['LED 1','LED 2','LED 3','LED 1,2','LED 1,3','LED 2,3','LED 1,2,3'];
+      const acts = ['깜박인다','켜다','끄다'];
+      if (d.action === '깜박인다') {
+        return `<select data-field="target">${opts.map(o=>`<option${o===d.target?' selected':''}>${o}</option>`).join('')}</select> 를 <input type="number" value="${d.interval}" min="1" max="10000" data-field="interval"> ms 간격으로 <input type="number" value="${d.count}" min="1" max="100" data-field="count"> 번 <select data-field="action">${acts.map(a=>`<option${a===d.action?' selected':''}>${a}</option>`).join('')}</select>`;
+      } else {
+        return `<select data-field="target">${opts.map(o=>`<option${o===d.target?' selected':''}>${o}</option>`).join('')}</select> 를 <input type="number" value="${d.duration}" min="0" max="10000" data-field="duration"> ms 동안 <select data-field="action">${acts.map(a=>`<option${a===d.action?' selected':''}>${a}</option>`).join('')}</select>`;
+      }
+    }
+  },
+  servo: {
+    type: 'servo',
+    cls: 'action-servo',
+    defaults: { fromAngle: 0, toAngle: 90, interval: 30, count: 3, action: '왕복한다', duration: 1000 },
+    render(d) {
+      const acts = ['왕복한다','이동한다'];
+      if (d.action === '왕복한다') {
+        return `서보모터를 <input type="number" value="${d.fromAngle}" min="0" max="180" data-field="fromAngle"> 도에서 <input type="number" value="${d.toAngle}" min="0" max="180" data-field="toAngle"> 도까지 <input type="number" value="${d.interval}" min="1" max="10000" data-field="interval"> ms 간격으로 <input type="number" value="${d.count}" min="1" max="100" data-field="count"> 번 <select data-field="action">${acts.map(a=>`<option${a===d.action?' selected':''}>${a}</option>`).join('')}</select>`;
+      } else {
+        return `서보모터를 <input type="number" value="${d.duration}" min="1" max="10000" data-field="duration"> ms 동안 <input type="number" value="${d.toAngle}" min="0" max="180" data-field="toAngle"> 도 위치로 <select data-field="action">${acts.map(a=>`<option${a===d.action?' selected':''}>${a}</option>`).join('')}</select>`;
+      }
+    }
+  },
+  wait: {
+    type: 'wait',
+    cls: 'wait',
+    defaults: { ms: 1000 },
+    render(d) {
+      return `<input type="number" value="${d.ms}" min="0" max="10000" data-field="ms"> ms 대기한다`;
+    }
+  }
+};
+
+// ===================================================================
+// 워크스페이스 블록 데이터
+// ===================================================================
+let workspaceBlocks = []; // [{id, type, data:{...}}]
+let blockIdCounter = 0;
+
+function newBlockId() { return 'b' + (++blockIdCounter); }
+
+// ===================================================================
+// 팔레트 렌더
+// ===================================================================
+function renderPalette() {
+  const sections = {
+    'palette-condition': 'condition',
+    'palette-led': 'led',
+    'palette-servo': 'servo',
+    'palette-wait': 'wait'
+  };
+  for (const [containerId, tplKey] of Object.entries(sections)) {
+    const tpl = BLOCK_TEMPLATES[tplKey];
+    const el = document.getElementById(containerId);
+    renderPaletteBlock(el, tpl, tplKey, { ...tpl.defaults });
+  }
+}
+
+function renderPaletteBlock(container, tpl, tplKey, data) {
+  container.innerHTML = '';
+  const block = document.createElement('div');
+  block.className = `block ${tpl.cls}`;
+  block.draggable = true;
+  block.dataset.templateType = tplKey;
+  block.innerHTML = tpl.render(data);
+  block.addEventListener('dragstart', onPaletteDragStart);
+  block.addEventListener('dblclick', onPaletteDblClick);
+  // action 셀렉트가 바뀌면 팔레트 블록도 모양 변경
+  const actionSelect = block.querySelector('[data-field="action"]');
+  if (actionSelect) {
+    actionSelect.addEventListener('change', () => {
+      // 현재 값 읽기
+      const newData = { ...data };
+      block.querySelectorAll('[data-field]').forEach(inp => {
+        newData[inp.dataset.field] = inp.tagName === 'SELECT' ? inp.value : Number(inp.value);
+      });
+      renderPaletteBlock(container, tpl, tplKey, newData);
+      autoResizeAllInputs(container);
+      wrapInputsWithHints(container);
+    });
+  }
+  container.appendChild(block);
+}
+
+// ===================================================================
+// 워크스페이스 렌더
+// ===================================================================
+function renderWorkspace() {
+  const ws = document.getElementById('workspace');
+  const hint = document.getElementById('emptyHint');
+
+  // 기존 블록 제거 (hint 보존)
+  ws.querySelectorAll('.block, .drop-indicator').forEach(el => el.remove());
+
+  if (workspaceBlocks.length === 0) {
+    hint.style.display = '';
+  } else {
+    hint.style.display = 'none';
+    workspaceBlocks.forEach((b, idx) => {
+      const tpl = BLOCK_TEMPLATES[b.type];
+      const el = document.createElement('div');
+      el.className = `block ${tpl.cls}`;
+      el.draggable = true;
+      el.dataset.blockId = b.id;
+      el.dataset.wsIndex = idx;
+      el.innerHTML = tpl.render(b.data) + '<span class="block-delete">✕</span>';
+
+      // 에러 체크
+      const errors = validateBlock(b);
+      if (errors.length > 0) {
+        el.classList.add('has-error');
+        const errDiv = document.createElement('div');
+        errDiv.className = 'error-msg';
+        errDiv.textContent = errors[0];
+        el.appendChild(errDiv);
+        el.querySelectorAll('input').forEach(inp => {
+          const f = inp.dataset.field;
+          const related = errors.some(e => e.includes(f) || e.includes(fieldLabel(f)));
+          if (related) inp.classList.add('error');
+        });
+      }
+
+      // 이벤트
+      el.addEventListener('dragstart', onWsDragStart);
+      el.querySelector('.block-delete').addEventListener('click', () => { removeBlock(b.id); });
+      el.querySelectorAll('input, select').forEach(inp => {
+        inp.addEventListener('change', () => {
+          syncBlockData(b.id, el);
+          // action이 바뀌면 블록 모양이 달라지므로 전체 다시 렌더
+          if (inp.dataset.field === 'action') { renderWorkspace(); return; }
+          onBlocksChanged();
+        });
+        inp.addEventListener('input', () => { syncBlockData(b.id, el); onBlocksChanged(); });
+      });
+
+      ws.appendChild(el);
+    });
+  }
+  autoResizeAllInputs(ws);
+  wrapInputsWithHints(ws);
+  onBlocksChanged();
+}
+
+function fieldLabel(f) {
+  const map = {distance:'거리',interval:'간격',count:'횟수',ms:'시간',fromAngle:'시작 각도',toAngle:'끝 각도'};
+  return map[f]||f;
+}
+
+function syncBlockData(blockId, el) {
+  const b = workspaceBlocks.find(x=>x.id===blockId);
+  if (!b) return;
+  el.querySelectorAll('[data-field]').forEach(inp => {
+    const f = inp.dataset.field;
+    b.data[f] = inp.tagName === 'SELECT' ? inp.value : Number(inp.value);
+  });
+}
+
+function validateBlock(b) {
+  const errs = [];
+  const d = b.data;
+  if (b.type === 'condition') {
+    if (isNaN(d.distance) || d.distance < 0 || d.distance > 30) errs.push('⚠️ 거리: 0~30 cm 사이로 입력해요');
+  } else if (b.type === 'led') {
+    if (d.action === '깜박인다') {
+      if (isNaN(d.interval) || d.interval < 1 || d.interval > 10000) errs.push('⚠️ 간격: 1~10,000 ms 사이로 입력해요');
+      if (isNaN(d.count) || d.count < 1 || d.count > 100) errs.push('⚠️ 횟수: 1~100 사이로 입력해요');
+    } else {
+      if (isNaN(d.duration) || d.duration < 0 || d.duration > 10000) errs.push('⚠️ 시간: 0~10,000 ms 사이로 입력해요');
+    }
+  } else if (b.type === 'servo') {
+    if (d.action === '왕복한다') {
+      if (isNaN(d.fromAngle) || d.fromAngle < 0 || d.fromAngle > 180) errs.push('⚠️ 시작 각도: 0~180° 사이로 입력해요');
+      if (isNaN(d.toAngle) || d.toAngle < 0 || d.toAngle > 180) errs.push('⚠️ 끝 각도: 0~180° 사이로 입력해요');
+      if (isNaN(d.interval) || d.interval < 1 || d.interval > 10000) errs.push('⚠️ 간격: 1~10,000 ms 사이로 입력해요');
+      if (isNaN(d.count) || d.count < 1 || d.count > 100) errs.push('⚠️ 횟수: 1~100 사이로 입력해요');
+    } else {
+      if (isNaN(d.toAngle) || d.toAngle < 0 || d.toAngle > 180) errs.push('⚠️ 각도: 0~180° 사이로 입력해요');
+      if (isNaN(d.duration) || d.duration < 1 || d.duration > 10000) errs.push('⚠️ 시간: 1~10,000 ms 사이로 입력해요');
+    }
+  } else if (b.type === 'wait') {
+    if (isNaN(d.ms) || d.ms < 0 || d.ms > 10000) errs.push('⚠️ 대기 시간: 0~10,000 ms 사이로 입력해요');
+  }
+  return errs;
+}
+
+function hasAnyError() {
+  return workspaceBlocks.some(b => validateBlock(b).length > 0);
+}
+
+function removeBlock(id) {
+  workspaceBlocks = workspaceBlocks.filter(b => b.id !== id);
+  renderWorkspace();
+}
+
+// ===================================================================
+// 드래그 & 드롭
+// ===================================================================
+let dragSource = null; // {from:'palette'|'workspace', type, index}
+
+function onPaletteDragStart(e) {
+  const tplType = e.currentTarget.dataset.templateType;
+  dragSource = { from: 'palette', type: tplType };
+  e.dataTransfer.effectAllowed = 'copy';
+  e.currentTarget.classList.add('dragging');
+  setTimeout(() => e.currentTarget.classList.remove('dragging'), 0);
+}
+
+function onWsDragStart(e) {
+  const idx = Number(e.currentTarget.dataset.wsIndex);
+  dragSource = { from: 'workspace', index: idx };
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.classList.add('dragging');
+}
+
+const workspace = document.getElementById('workspace');
+const trashZone = document.getElementById('trashZone');
+
+workspace.addEventListener('dragover', e => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = dragSource?.from === 'palette' ? 'copy' : 'move';
+  workspace.classList.add('drag-over');
+});
+workspace.addEventListener('dragleave', () => workspace.classList.remove('drag-over'));
+workspace.addEventListener('drop', e => {
+  e.preventDefault();
+  workspace.classList.remove('drag-over');
+  if (!dragSource) return;
+
+  const dropIndex = getDropIndex(e);
+
+  if (dragSource.from === 'palette') {
+    const tpl = BLOCK_TEMPLATES[dragSource.type];
+    const newBlock = { id: newBlockId(), type: dragSource.type, data: { ...tpl.defaults } };
+    workspaceBlocks.splice(dropIndex, 0, newBlock);
+  } else if (dragSource.from === 'workspace') {
+    const [moved] = workspaceBlocks.splice(dragSource.index, 1);
+    const adjustedIdx = dropIndex > dragSource.index ? dropIndex - 1 : dropIndex;
+    workspaceBlocks.splice(adjustedIdx, 0, moved);
+  }
+  dragSource = null;
+  renderWorkspace();
+});
+
+function getDropIndex(e) {
+  const blocks = workspace.querySelectorAll('.block');
+  for (let i = 0; i < blocks.length; i++) {
+    const rect = blocks[i].getBoundingClientRect();
+    if (e.clientY < rect.top + rect.height / 2) return i;
+  }
+  return workspaceBlocks.length;
+}
+
+trashZone.addEventListener('dragover', e => { e.preventDefault(); trashZone.classList.add('drag-over'); });
+trashZone.addEventListener('dragleave', () => trashZone.classList.remove('drag-over'));
+trashZone.addEventListener('drop', e => {
+  e.preventDefault();
+  trashZone.classList.remove('drag-over');
+  if (dragSource?.from === 'workspace') {
+    workspaceBlocks.splice(dragSource.index, 1);
+    dragSource = null;
+    renderWorkspace();
+  }
+});
+
+document.addEventListener('dragend', () => {
+  document.querySelectorAll('.dragging').forEach(el => el.classList.remove('dragging'));
+  workspace.classList.remove('drag-over');
+  trashZone.classList.remove('drag-over');
+  dragSource = null;
+});
+
+// ===================================================================
+// 더블클릭으로 블록 추가
+// ===================================================================
+function onPaletteDblClick(e) {
+  // input/select 더블클릭은 무시
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+  const block = e.currentTarget;
+  const tplType = block.dataset.templateType;
+  const tpl = BLOCK_TEMPLATES[tplType];
+
+  // 팔레트 블록에서 현재 값 읽기
+  const data = { ...tpl.defaults };
+  block.querySelectorAll('[data-field]').forEach(inp => {
+    data[inp.dataset.field] = inp.tagName === 'SELECT' ? inp.value : Number(inp.value);
+  });
+
+  workspaceBlocks.push({ id: newBlockId(), type: tplType, data });
+
+  // 시각적 피드백
+  block.classList.add('dblclick-flash');
+  setTimeout(() => block.classList.remove('dblclick-flash'), 350);
+
+  renderWorkspace();
+
+  // 배치 영역 스크롤 맨 아래로
+  const ws = document.getElementById('workspace');
+  ws.scrollTop = ws.scrollHeight;
+}
+
+// ===================================================================
+// 블록 변경 시 코드 갱신 + play 버튼 상태
+// ===================================================================
+function onBlocksChanged() {
+  generateCode();
+  document.getElementById('btnPlay').disabled = workspaceBlocks.length === 0 || hasAnyError();
+}
+
+// ===================================================================
+// 거리 슬라이더
+// ===================================================================
+const distSlider = document.getElementById('distSlider');
+const sliderVal = document.getElementById('sliderVal');
+const distLabel = document.getElementById('distLabel');
+
+distSlider.addEventListener('input', () => {
+  const v = distSlider.value;
+  sliderVal.textContent = v + ' cm';
+  distLabel.textContent = v + ' cm';
+});
+
+// ===================================================================
+// 코드 생성
+// ===================================================================
+function generateCode() {
+  const lines = [];
+  const L = s => lines.push(s);
+
+  L('// [핀 연결 안내]');
+  L(`// LED1 +극: ${PIN.led1}번 핀`);
+  L(`// LED2 +극: ${PIN.led2}번 핀`);
+  L(`// LED3 +극: ${PIN.led3}번 핀`);
+  L(`// 서보모터 신호: ${PIN.servo}번 핀`);
+  L(`// 초음파 Trig: ${PIN.trig}번 핀`);
+  L(`// 초음파 Echo: ${PIN.echo}번 핀`);
+  L('');
+  L('#include <Servo.h>  // 서보모터 기능 불러오기');
+  L('');
+  L('Servo myServo;  // 서보모터 사용 준비');
+  L(`int led1 = ${PIN.led1};  // LED1 핀`);
+  L(`int led2 = ${PIN.led2};  // LED2 핀`);
+  L(`int led3 = ${PIN.led3};  // LED3 핀`);
+  L(`int trig = ${PIN.trig};  // 초음파 보내는 핀`);
+  L(`int echo = ${PIN.echo};  // 초음파 받는 핀`);
+  L(`int motorPin = ${PIN.servo};  // 서보모터 핀`);
+  L('');
+
+  // helper 함수 필요 여부 판단
+  const needsBlink = workspaceBlocks.some(b => b.type==='led' && b.data.action==='깜박인다');
+  const needsFade = workspaceBlocks.some(b => b.type==='led' && (b.data.action==='켜다' || b.data.action==='끄다') && b.data.duration > 0);
+  const needsSweep = workspaceBlocks.some(b => b.type==='servo' && b.data.action==='왕복한다');
+  const needsMove = workspaceBlocks.some(b => b.type==='servo' && b.data.action==='이동한다');
+
+  // helper 함수 선언
+  L('// 초음파 센서로 거리 측정하는 함수');
+  L('long readDistanceCm() {');
+  L('  digitalWrite(trig, LOW);');
+  L('  delayMicroseconds(10);');
+  L('  digitalWrite(trig, HIGH);');
+  L('  delayMicroseconds(10);');
+  L('  digitalWrite(trig, LOW);');
+  L('  long duration = pulseIn(echo, HIGH);');
+  L('  return duration * 17 / 1000;');
+  L('}');
+  L('');
+
+  if (needsBlink) {
+    L('// LED 깜박이기 함수');
+    L('void blinkLed(int pin, int interval, int count) {');
+    L('  for (int i = 0; i < count; i++) {');
+    L('    digitalWrite(pin, HIGH);');
+    L('    delay(interval);');
+    L('    digitalWrite(pin, LOW);');
+    L('    delay(interval);');
+    L('  }');
+    L('}');
+    L('');
+  }
+
+  if (needsSweep) {
+    L('// 서보모터 왕복 함수');
+    L('void servoSweep(int fromAngle, int toAngle, int interval, int count) {');
+    L('  for (int c = 0; c < count; c++) {');
+    L('    if (fromAngle < toAngle) {');
+    L('      for (int a = fromAngle; a <= toAngle; a++) { myServo.write(a); delay(interval); }');
+    L('      for (int a = toAngle; a >= fromAngle; a--) { myServo.write(a); delay(interval); }');
+    L('    } else {');
+    L('      for (int a = fromAngle; a >= toAngle; a--) { myServo.write(a); delay(interval); }');
+    L('      for (int a = toAngle; a <= fromAngle; a++) { myServo.write(a); delay(interval); }');
+    L('    }');
+    L('  }');
+    L('}');
+    L('');
+  }
+
+  if (needsFade) {
+    L('// LED 천천히 켜기/끄기 함수 (PWM 사용)');
+    L('void fadeLed(int pin, int startVal, int endVal, int duration) {');
+    L('  int steps = 50;');
+    L('  int stepTime = duration / steps;');
+    L('  for (int i = 0; i <= steps; i++) {');
+    L('    int val = startVal + (endVal - startVal) * i / steps;');
+    L('    analogWrite(pin, val);');
+    L('    delay(stepTime);');
+    L('  }');
+    L('}');
+    L('');
+  }
+
+  if (needsMove) {
+    L('// 서보모터 천천히 이동 함수');
+    L('void servoMoveTo(int targetAngle, int duration) {');
+    L('  int current = myServo.read();');
+    L('  int diff = abs(targetAngle - current);');
+    L('  if (diff == 0) return;');
+    L('  int stepTime = duration / diff;');
+    L('  if (current < targetAngle) {');
+    L('    for (int a = current; a <= targetAngle; a++) { myServo.write(a); delay(stepTime); }');
+    L('  } else {');
+    L('    for (int a = current; a >= targetAngle; a--) { myServo.write(a); delay(stepTime); }');
+    L('  }');
+    L('}');
+    L('');
+  }
+
+  L('void setup() {');
+  L('  Serial.begin(9600);');
+  L('  pinMode(trig, OUTPUT);');
+  L('  pinMode(echo, INPUT);');
+  L('  pinMode(led1, OUTPUT);');
+  L('  pinMode(led2, OUTPUT);');
+  L('  pinMode(led3, OUTPUT);');
+  L('  myServo.attach(motorPin);');
+  L('  myServo.write(0);  // 서보모터 초기 위치');
+  L('}');
+  L('');
+  L('void loop() {');
+  L('  long distance = readDistanceCm();');
+  L('  Serial.println(distance);');
+
+  // 블록 해석
+  let inCondition = false;
+  for (let i = 0; i < workspaceBlocks.length; i++) {
+    const b = workspaceBlocks[i];
+    const indent = inCondition ? '    ' : '  ';
+
+    if (b.type === 'condition') {
+      if (inCondition) L('  }'); // 이전 조건 닫기
+      const cmp = b.data.compare === '작다면' ? '<' : b.data.compare === '크다면' ? '>' : '==';
+      if (b.data.compare === '같다면') {
+        L(`  // "같다면"은 ±1cm 오차 범위로 비교`);
+        L(`  if (distance >= ${b.data.distance - 1} && distance <= ${b.data.distance + 1}) {`);
+      } else {
+        L(`  if (distance ${cmp} ${b.data.distance}) {`);
+      }
+      inCondition = true;
+    } else if (b.type === 'led') {
+      const leds = parseLedTarget(b.data.target);
+      if (b.data.action === '깜박인다') {
+        leds.forEach(l => L(`${indent}blinkLed(led${l}, ${b.data.interval}, ${b.data.count});  // LED${l} 깜박이기`));
+      } else if (b.data.action === '켜다') {
+        const dur = b.data.duration || 0;
+        if (dur > 0) {
+          leds.forEach(l => L(`${indent}fadeLed(led${l}, 0, 255, ${dur});  // LED${l} ${dur}ms 동안 천천히 켜기`));
+        } else {
+          leds.forEach(l => L(`${indent}digitalWrite(led${l}, HIGH);  // LED${l} 켜기`));
+        }
+      } else {
+        const dur = b.data.duration || 0;
+        if (dur > 0) {
+          leds.forEach(l => L(`${indent}fadeLed(led${l}, 255, 0, ${dur});  // LED${l} ${dur}ms 동안 천천히 끄기`));
+        } else {
+          leds.forEach(l => L(`${indent}digitalWrite(led${l}, LOW);  // LED${l} 끄기`));
+        }
+      }
+    } else if (b.type === 'servo') {
+      if (b.data.action === '왕복한다') {
+        L(`${indent}servoSweep(${b.data.fromAngle}, ${b.data.toAngle}, ${b.data.interval}, ${b.data.count});  // 서보모터 왕복`);
+      } else {
+        const dur = b.data.duration || 1000;
+        L(`${indent}servoMoveTo(${b.data.toAngle}, ${dur});  // 서보모터 ${dur}ms 동안 ${b.data.toAngle}도로 이동`);
+      }
+    } else if (b.type === 'wait') {
+      L(`${indent}delay(${b.data.ms});  // ${b.data.ms}ms 대기`);
+    }
+  }
+  if (inCondition) L('  }');
+  L('}');
+
+  const raw = lines.join('\n');
+  document.getElementById('codeDisplay').textContent = raw;
+  highlightCode();
+  return raw;
+}
+
+function parseLedTarget(t) {
+  const m = t.match(/\d/g);
+  return m ? m.map(Number) : [1];
+}
+
+function highlightCode() {
+  const el = document.getElementById('codeDisplay');
+  const raw = el.textContent;
+  // 한 줄씩 처리하여 주석 부분과 코드 부분을 분리
+  const highlighted = raw.split('\n').map(line => {
+    // HTML 이스케이프
+    let safe = line.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+    // 주석이 포함된 줄 → 코드 부분만 하이라이팅
+    const cmIdx = safe.indexOf('//');
+    if (cmIdx >= 0) {
+      const codePart = safe.substring(0, cmIdx);
+      const commentPart = safe.substring(cmIdx);
+      return colorize(codePart) + '<span class="cm">' + commentPart + '</span>';
+    }
+    return colorize(safe);
+  }).join('\n');
+  el.innerHTML = highlighted;
+}
+
+function colorize(s) {
+  // #include
+  s = s.replace(/(#include)/g, '<span class="kw">$1</span>');
+  // <Servo.h>
+  s = s.replace(/(&lt;Servo\.h&gt;)/g, '<span class="str">$1</span>');
+  // 키워드
+  s = s.replace(/\b(void|int|long|for|if|else|return|const|Servo|OUTPUT|INPUT|HIGH|LOW)\b/g, '<span class="kw">$1</span>');
+  // 함수명
+  s = s.replace(/\b(setup|loop|pinMode|digitalWrite|analogWrite|delay|delayMicroseconds|pulseIn|Serial|begin|println|attach|write|read|readDistanceCm|blinkLed|fadeLed|servoSweep|servoMoveTo|map|abs)\b/g, '<span class="fn">$1</span>');
+  // 숫자 (이미 span 안에 있는 숫자는 건드리지 않도록 부정 후방탐색)
+  s = s.replace(/(?<!">)\b(\d+)\b(?!<\/span>)/g, '<span class="num">$1</span>');
+  return s;
+}
+
+// ===================================================================
+// 코드 복사
+// ===================================================================
+document.getElementById('btnCopy').addEventListener('click', () => {
+  const code = document.getElementById('codeDisplay').textContent;
+  navigator.clipboard.writeText(code).then(() => showToast('✅ 복사 완료!')).catch(() => {
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = code; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    showToast('✅ 복사 완료!');
+  });
+});
+
+document.getElementById('btnRegen').addEventListener('click', () => { generateCode(); showToast('🔄 코드를 다시 생성했어요!'); });
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ===================================================================
+// 시뮬레이션 엔진
+// ===================================================================
+let simRunning = false;
+let simPaused = false;
+let simAbort = null; // AbortController
+
+function setLed(n, on) {
+  const el = document.getElementById('led' + n);
+  if (on) el.classList.add('on'); else el.classList.remove('on');
+}
+
+function setLedOpacity(n, opacity) {
+  const el = document.getElementById('led' + n);
+  if (opacity > 0.01) {
+    el.classList.add('on');
+    el.style.opacity = opacity;
+    el.style.filter = `brightness(${0.3 + opacity * 0.7})`;
+  } else {
+    el.classList.remove('on');
+    el.style.opacity = '';
+    el.style.filter = '';
+  }
+}
+
+function resetLedStyle(n) {
+  const el = document.getElementById('led' + n);
+  el.style.opacity = '';
+  el.style.filter = '';
+}
+
+function setServoAngle(deg) {
+  deg = Math.max(0, Math.min(180, deg));
+  document.getElementById('servoArm').style.transform = `translateX(-50%) rotate(${deg - 90}deg)`;
+  document.getElementById('servoAngleLabel').textContent = deg + '°';
+}
+
+function resetSim() {
+  [1,2,3].forEach(n => { resetLedStyle(n); setLed(n, false); });
+  setServoAngle(0);
+  clearExecutingHighlight();
+}
+
+function getDistance() { return Number(distSlider.value); }
+
+function sleep(ms, signal) {
+  return new Promise((resolve, reject) => {
+    const check = () => {
+      if (signal.aborted) { reject(new DOMException('Aborted','AbortError')); return; }
+      if (simPaused) { setTimeout(check, 50); return; }
+      resolve();
+    };
+    if (ms <= 0) { check(); return; }
+    setTimeout(check, ms);
+  });
+}
+
+function highlightBlock(idx) {
+  clearExecutingHighlight();
+  const ws = document.getElementById('workspace');
+  const blocks = ws.querySelectorAll('.block');
+  if (blocks[idx]) blocks[idx].classList.add('executing');
+}
+
+function clearExecutingHighlight() {
+  document.querySelectorAll('.block.executing').forEach(el => el.classList.remove('executing'));
+}
+
+async function runSimulation(signal) {
+  while (!signal.aborted) {
+    for (let i = 0; i < workspaceBlocks.length; i++) {
+      if (signal.aborted) return;
+      const b = workspaceBlocks[i];
+      highlightBlock(i);
+
+      if (b.type === 'condition') {
+        const dist = getDistance();
+        const val = b.data.distance;
+        let condTrue = false;
+        if (b.data.compare === '작다면') condTrue = dist < val;
+        else if (b.data.compare === '크다면') condTrue = dist > val;
+        else condTrue = Math.abs(dist - val) <= 1;
+
+        if (!condTrue) {
+          // 조건 거짓 → 다음 조건 블록이나 조건 밖 블록까지 스킵
+          let j = i + 1;
+          while (j < workspaceBlocks.length && workspaceBlocks[j].type !== 'condition') j++;
+          i = j - 1;
+          continue;
+        }
+        await sleep(100, signal);
+      } else if (b.type === 'led') {
+        const leds = parseLedTarget(b.data.target);
+        if (b.data.action === '깜박인다') {
+          for (let c = 0; c < b.data.count; c++) {
+            if (signal.aborted) return;
+            leds.forEach(l => setLed(l, true));
+            await sleep(b.data.interval, signal);
+            leds.forEach(l => setLed(l, false));
+            await sleep(b.data.interval, signal);
+          }
+        } else if (b.data.action === '켜다') {
+          const dur = b.data.duration || 0;
+          const anyOff = leds.some(l => !document.getElementById('led' + l).classList.contains('on'));
+          if (dur > 0 && anyOff) {
+            // 천천히 켜기: opacity 0→1 단계적 증가
+            const steps = 20;
+            const stepTime = dur / steps;
+            for (let s = 0; s <= steps; s++) {
+              if (signal.aborted) return;
+              leds.forEach(l => setLedOpacity(l, s / steps));
+              await sleep(stepTime, signal);
+            }
+          }
+          leds.forEach(l => { setLed(l, true); resetLedStyle(l); });
+        } else {
+          const dur = b.data.duration || 0;
+          // 끄기: 현재 켜져있을 때만 fade, 이미 꺼져있으면 스킵
+          const anyOn = leds.some(l => document.getElementById('led' + l).classList.contains('on'));
+          if (dur > 0 && anyOn) {
+            // 천천히 끄기: opacity 1→0 단계적 감소
+            const steps = 20;
+            const stepTime = dur / steps;
+            for (let s = steps; s >= 0; s--) {
+              if (signal.aborted) return;
+              leds.forEach(l => setLedOpacity(l, s / steps));
+              await sleep(stepTime, signal);
+            }
+          }
+          // 최종 상태: 확실히 끄기
+          leds.forEach(l => { setLed(l, false); resetLedStyle(l); });
+        }
+      } else if (b.type === 'servo') {
+        if (b.data.action === '왕복한다') {
+          const from = b.data.fromAngle, to = b.data.toAngle;
+          for (let c = 0; c < b.data.count; c++) {
+            if (signal.aborted) return;
+            if (from <= to) {
+              for (let a = from; a <= to; a += 2) { setServoAngle(a); await sleep(b.data.interval, signal); }
+              for (let a = to; a >= from; a -= 2) { setServoAngle(a); await sleep(b.data.interval, signal); }
+            } else {
+              for (let a = from; a >= to; a -= 2) { setServoAngle(a); await sleep(b.data.interval, signal); }
+              for (let a = to; a <= from; a += 2) { setServoAngle(a); await sleep(b.data.interval, signal); }
+            }
+          }
+        } else {
+          // 이동: duration 동안 현재 각도 → 목표 각도
+          const cur = parseInt(document.getElementById('servoAngleLabel').textContent) || 0;
+          const target = b.data.toAngle;
+          const dur = b.data.duration || 1000;
+          const diff = Math.abs(target - cur);
+          if (diff === 0) { await sleep(100, signal); }
+          else {
+            const steps = Math.max(diff, 1);
+            const stepTime = dur / steps;
+            const step = cur < target ? 1 : -1;
+            for (let a = cur; step > 0 ? a <= target : a >= target; a += step) {
+              if (signal.aborted) return;
+              setServoAngle(a);
+              await sleep(stepTime, signal);
+            }
+          }
+          setServoAngle(target);
+          setServoAngle(target);
+        }
+      } else if (b.type === 'wait') {
+        await sleep(b.data.ms, signal);
+      }
+    }
+    // loop 반복 간 약간의 딜레이
+    await sleep(100, signal);
+  }
+}
+
+document.getElementById('btnPlay').addEventListener('click', () => {
+  if (simRunning && simPaused) {
+    // resume
+    simPaused = false;
+    document.getElementById('btnPlay').textContent = '▶ 실행';
+    document.getElementById('btnPlay').disabled = true;
+    document.getElementById('btnPause').disabled = false;
+    return;
+  }
+  if (simRunning) return;
+
+  simRunning = true;
+  simPaused = false;
+  simAbort = new AbortController();
+
+  document.getElementById('btnPlay').disabled = true;
+  document.getElementById('btnPause').disabled = false;
+
+  runSimulation(simAbort.signal).catch(() => {}).finally(() => {
+    simRunning = false;
+    simPaused = false;
+    document.getElementById('btnPlay').disabled = workspaceBlocks.length === 0 || hasAnyError();
+    document.getElementById('btnPause').disabled = true;
+    clearExecutingHighlight();
+  });
+});
+
+document.getElementById('btnPause').addEventListener('click', () => {
+  if (!simRunning) return;
+  simPaused = true;
+  document.getElementById('btnPlay').textContent = '▶ 계속';
+  document.getElementById('btnPlay').disabled = false;
+  document.getElementById('btnPause').disabled = true;
+});
+
+document.getElementById('btnReset').addEventListener('click', () => {
+  if (simAbort) simAbort.abort();
+  simRunning = false;
+  simPaused = false;
+  resetSim();
+  document.getElementById('btnPlay').textContent = '▶ 실행';
+  document.getElementById('btnPlay').disabled = workspaceBlocks.length === 0 || hasAnyError();
+  document.getElementById('btnPause').disabled = true;
+});
+
+// ===================================================================
+// Input 너비 자동 조절 (글자 수에 따라 반응형)
+// ===================================================================
+function autoResizeInput(inp) {
+  const val = inp.value || '';
+  const charCount = Math.max(val.length, 1);
+  inp.style.width = (charCount * 0.85 + 1.8) + 'em';
+}
+
+function autoResizeAllInputs(container) {
+  (container || document).querySelectorAll('.block input[type="number"]').forEach(autoResizeInput);
+}
+
+// input 이벤트 위임: 값이 바뀔 때마다 너비 갱신
+document.addEventListener('input', e => {
+  if (e.target.matches('.block input[type="number"]')) autoResizeInput(e.target);
+});
+
+// ===================================================================
+// 입력 범위 힌트 툴팁
+// ===================================================================
+const RANGE_LABELS = {
+  distance: '0 ~ 30 cm',
+  interval: '1 ~ 10,000 ms',
+  count: '1 ~ 100 회',
+  ms: '0 ~ 10,000 ms',
+  fromAngle: '0 ~ 180°',
+  toAngle: '0 ~ 180°',
+  duration: '0 ~ 10,000 ms'
+};
+
+function wrapInputsWithHints(container) {
+  (container || document).querySelectorAll('.block input[type="number"]').forEach(inp => {
+    if (inp.parentElement.classList.contains('input-wrap')) return; // 이미 처리됨
+    const field = inp.dataset.field;
+    const label = RANGE_LABELS[field];
+    if (!label) return;
+    const wrap = document.createElement('span');
+    wrap.className = 'input-wrap';
+    inp.parentNode.insertBefore(wrap, inp);
+    wrap.appendChild(inp);
+    const hint = document.createElement('span');
+    hint.className = 'range-hint';
+    hint.textContent = '📏 ' + label;
+    wrap.appendChild(hint);
+  });
+}
+
+// ===================================================================
+// 핀 연결 안내 토글
+// ===================================================================
+document.getElementById('pinInfoToggle').addEventListener('click', () => {
+  document.getElementById('pinInfoBar').classList.toggle('open');
+});
+
+// ===================================================================
+// 초기화
+// ===================================================================
+function init() {
+  renderPalette();
+  autoResizeAllInputs();
+  wrapInputsWithHints();
+
+  // 초기 샘플 블록 배치
+  workspaceBlocks = [
+    { id: newBlockId(), type: 'condition', data: { distance: 10, compare: '작다면' } },
+    { id: newBlockId(), type: 'led', data: { target: 'LED 1', interval: 200, count: 3, action: '깜박인다' } },
+    { id: newBlockId(), type: 'servo', data: { fromAngle: 30, toAngle: 150, interval: 20, count: 2, action: '왕복한다' } },
+  ];
+
+  renderWorkspace();
+  resetSim();
+}
+
+init();
+</script>
+</body>
+</html>
